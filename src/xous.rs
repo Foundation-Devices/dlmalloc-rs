@@ -51,6 +51,14 @@ mod sys {
     }
 }
 
+#[cfg(target_arch = "arm")]
+mod sys {
+    pub fn increase_heap(length: usize) -> Result<(usize, usize), ()> {
+        let mem_range = xous::syscall::increase_heap(length)?;
+        Ok((mem_range.as_ptr() as usize, mem_range.len()))
+    }
+}
+
 unsafe impl Allocator for System {
     /// Allocate an additional `size` bytes on the heap, and return a new
     /// chunk of memory, as well as the size of the allocation and some
