@@ -56,37 +56,8 @@ mod sys {
     use core::arch::asm;
 
     pub fn increase_heap(length: usize) -> Result<(usize, usize), ()> {
-        let syscall_no_increase_heap = 10usize;
-        let memory_flags_read_write = 2usize | 4usize;
-
-        let mut r0 = syscall_no_increase_heap;
-        let mut r1 = length;
-        let mut r2 = memory_flags_read_write;
-
-        unsafe {
-            asm!(
-                "svc 0",
-                inlateout("r0") r0,
-                inlateout("r1") r1,
-                inlateout("r2") r2,
-                out("r3") _,
-                out("r4") _,
-                out("r5") _,
-                out("r7") _,
-            )
-        };
-
-        let result = r0;
-        let address = r1;
-        let length = r2;
-
-        // 3 is the "MemoryRange" type, and the result is only valid
-        // if we get nonzero address and length.
-        if result == 3 && address != 0 && length != 0 {
-            Ok((address, length))
-        } else {
-            Err(())
-        }
+        let memory_flags_read_write = xous::MemoryFlags::R | xous::MemoryFlags::W;
+        xous::syscall::increase_heap(length, memory_flags_read_write)
     }
 }
 
