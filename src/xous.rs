@@ -53,11 +53,10 @@ mod sys {
 
 #[cfg(target_arch = "arm")]
 mod sys {
-    use core::arch::asm;
-
     pub fn increase_heap(length: usize) -> Result<(usize, usize), ()> {
         let memory_flags_read_write = xous::MemoryFlags::R | xous::MemoryFlags::W;
-        xous::syscall::increase_heap(length, memory_flags_read_write)
+        let mem_range = xous::syscall::increase_heap(length, memory_flags_read_write)?;
+        Ok((mem_range.as_ptr() as usize, mem_range.len()))
     }
 }
 
