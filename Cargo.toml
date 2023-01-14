@@ -17,6 +17,9 @@ features = ['global']
 [lib]
 doctest = false
 
+[target.'cfg(all(target_arch = "arm", target_os = "xous"))'.dependencies]
+xous = { git = "https://github.com/Foundation-Devices/keyOS.git", branch = "arm-keyos", features = ['rustc-dep-of-std'], default-features = false }
+
 [target.'cfg(all(unix, not(target_arch = "wasm32")))'.dependencies]
 libc = { version = "0.2", default-features = false }
 
