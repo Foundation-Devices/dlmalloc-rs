@@ -11,46 +11,6 @@ impl System {
     }
 }
 
-#[cfg(target_arch = "riscv32")]
-mod sys {
-    use core::arch::asm;
-
-    pub fn increase_heap(length: usize) -> Result<(usize, usize), ()> {
-        let syscall_no_increase_heap = 10usize;
-        let memory_flags_read_write = 2usize | 4usize;
-
-        let mut a0 = syscall_no_increase_heap;
-        let mut a1 = length;
-        let mut a2 = memory_flags_read_write;
-
-        unsafe {
-            asm!(
-                "ecall",
-                inlateout("a0") a0,
-                inlateout("a1") a1,
-                inlateout("a2") a2,
-                out("a3") _,
-                out("a4") _,
-                out("a5") _,
-                out("a6") _,
-                out("a7") _,
-            )
-        };
-
-        let result = a0;
-        let address = a1;
-        let length = a2;
-
-        // 3 is the "MemoryRange" type, and the result is only valid
-        // if we get nonzero address and length.
-        if result == 3 && address != 0 && length != 0 {
-            Ok((address, length))
-        } else {
-            Err(())
-        }
-    }
-}
-
 unsafe impl Allocator for System {
     /// Allocate an additional `size` bytes on the heap, and return a new
     /// chunk of memory, as well as the size of the allocation and some
@@ -58,16 +18,13 @@ unsafe impl Allocator for System {
     /// be `0`.
     fn alloc(&self, size: usize) -> (*mut u8, usize, u32) {
         let size = if size == 0 {
-            4096
-        } else if size & 4095 == 0 {
-            size
+            0x1000
         } else {
-            size + (4096 - (size & 4095))
+            size.next_multiple_of(0x1000)
         };
 
-        if let Ok((address, length)) = sys::increase_heap(size) {
-            let start = address - size + length;
-            (start as *mut u8, size, 0)
+        if let Ok(range) = xous::map_memory(None, None, size, xous::MemoryFlags::W) {
+            (range.as_mut_ptr(), range.len(), 0)
         } else {
             (ptr::null_mut(), 0, 0)
         }
@@ -78,16 +35,26 @@ unsafe impl Allocator for System {
         ptr::null_mut()
     }
 
-    fn free_part(&self, _ptr: *mut u8, _oldsize: usize, _newsize: usize) -> bool {
-        false
+    fn free_part(&self, ptr: *mut u8, oldsize: usize, newsize: usize) -> bool {
+        let range = unsafe { xous::MemoryRange::new(ptr as usize + newsize, oldsize - newsize) };
+        if let Ok(range) = range {
+            xous::unmap_memory(range).is_ok()
+        } else {
+            false
+        }
     }
 
-    fn free(&self, _ptr: *mut u8, _size: usize) -> bool {
-        false
+    fn free(&self, ptr: *mut u8, size: usize) -> bool {
+        let range = unsafe { xous::MemoryRange::new(ptr as _, size) };
+        if let Ok(range) = range {
+            xous::unmap_memory(range).is_ok()
+        } else {
+            false
+        }
     }
 
     fn can_release_part(&self, _flags: u32) -> bool {
-        false
+        true
     }
 
     fn allocates_zeros(&self) -> bool {
@@ -95,7 +62,7 @@ unsafe impl Allocator for System {
     }
 
     fn page_size(&self) -> usize {
-        4 * 1024
+        0x1000
     }
 }
 
