@@ -47,9 +47,6 @@ features = [
 arbitrary = "1.3.2"
 rand = { version = "0.8", features = ['small_rng'] }
 
-[profile.release]
-debug-assertions = true
-
 [features]
 # Enable implementations of the `GlobalAlloc` standard library API, exporting a
 # new `GlobalDlmalloc` as well which implements this trait.
